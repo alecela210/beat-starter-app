@@ -1,2 +1,4 @@
-﻿streamlit
+streamlit
+numpy
+mido
 pretty_midi
