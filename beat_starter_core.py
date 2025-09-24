@@ -1,343 +1,178 @@
-# Enhanced Beat Starter Core with MIDI export (requires 'pretty_midi' to write MIDI files)
-# Save this file as beat_starter_core.py and run locally.
-import json, random, datetime
-from pathlib import Path
+import random
+import json
 
-# NOTE: The MIDI export functions require 'pretty_midi' (pip install pretty_midi).
+# Try importing pretty_midi (for MIDI export)
 try:
     import pretty_midi
-except Exception:
-    pretty_midi = None
+    HAS_MIDI = True
+except ImportError:
+    HAS_MIDI = False
 
-GENRE_KB = {
-  "techno": {
-    "bpm_range": [
-      120,
-      140
-    ],
-    "pattern": "4x4 kick | steady closed hi-hat on 8th notes | clap on 2 and 4",
-    "instruments": [
-      "Acid bass",
-      "Analog lead",
-      "White noise riser",
-      "Perc loop"
-    ],
-    "structure": [
-      "Intro",
-      "Build",
-      "Drop",
-      "Breakdown",
-      "Outro"
-    ]
-  },
-  "techno_acid": {
-    "bpm_range": [
-      125,
-      135
-    ],
-    "pattern": "4x4 kick | 16th acid bassline | hi-hat variation",
-    "instruments": [
-      "TB-303 acid bass",
-      "Roland stab",
-      "Closed hat",
-      "Noise riser"
-    ],
-    "structure": [
-      "Intro",
-      "Acid groove",
-      "Peak",
-      "Breakdown",
-      "Outro"
-    ]
-  },
-  "techno_peak": {
-    "bpm_range": [
-      128,
-      140
-    ],
-    "pattern": "Driving 4x4 kick | open hat on off-beats | percussive loops",
-    "instruments": [
-      "Punchy kick",
-      "Sub bass",
-      "Lead stab",
-      "Perc loop"
-    ],
-    "structure": [
-      "Intro",
-      "Rise",
-      "Peak",
-      "Breakdown",
-      "Peak 2",
-      "Outro"
-    ]
-  },
-  "industrial": {
-    "bpm_range": [
-      110,
-      140
-    ],
-    "pattern": "Distorted kick | metallic hits | industrial percussion patterns",
-    "instruments": [
-      "Distorted kick",
-      "Metallic percussion",
-      "Harsh synth",
-      "Noise"
-    ],
-    "structure": [
-      "Intro (noise)",
-      "Riff",
-      "Aggressive section",
-      "Break",
-      "Outro"
-    ]
-  },
-  "ebm": {
-    "bpm_range": [
-      120,
-      135
-    ],
-    "pattern": "4x4 kick with driving bassline | stompy snare | minimal hats",
-    "instruments": [
-      "Synth bass",
-      "Cold lead",
-      "Punchy kick",
-      "Perc hits"
-    ],
-    "structure": [
-      "Intro",
-      "Verse",
-      "Chorus",
-      "Verse",
-      "Instrumental",
-      "Outro"
-    ]
-  },
-  "electro": {
-    "bpm_range": [
-      110,
-      128
-    ],
-    "pattern": "Syncopated kicks | crisp hats | retro electric percussion",
-    "instruments": [
-      "FM bass",
-      "Retro lead",
-      "808-style kick",
-      "Perc loops"
-    ],
-    "structure": [
-      "Intro",
-      "Build",
-      "Drop",
-      "Break",
-      "Drop 2",
-      "Outro"
-    ]
-  },
-  "hiphop_boom_bap": {
-    "bpm_range": [
-      80,
-      95
-    ],
-    "pattern": "Boom-bap kick/snare | swung hi-hat | chopped sample loop",
-    "instruments": [
-      "Boom-bap kick",
-      "Snappy snare",
-      "Warm bass",
-      "Vocal sample"
-    ],
-    "structure": [
-      "Intro",
-      "Verse",
-      "Chorus",
-      "Verse",
-      "Outro"
-    ]
-  },
-  "hiphop_trap": {
-    "bpm_range": [
-      130,
-      160
-    ],
-    "pattern": "Trap hi-hat rolls | deep 808 | punchy snare on 3",
-    "instruments": [
-      "808 sub",
-      "Snare clap",
-      "Pluck lead",
-      "Hi-hat loop"
-    ],
-    "structure": [
-      "Intro",
-      "Verse",
-      "Hook",
-      "Verse",
-      "Hook",
-      "Outro"
-    ]
-  },
-  "lofi": {
-    "bpm_range": [
-      60,
-      90
-    ],
-    "pattern": "Soft kick | chopped samples | dusty percussion",
-    "instruments": [
-      "Crate-sampled piano",
-      "Soft bass",
-      "Brush snare",
-      "Tape hiss"
-    ],
-    "structure": [
-      "Intro",
-      "Looped verse",
-      "Short break",
-      "Looped verse",
-      "Outro"
-    ]
-  },
-  "experimental": {
-    "bpm_range": [
-      60,
-      150
-    ],
-    "pattern": "Non-linear percussion | irregular accents | noise textures",
-    "instruments": [
-      "Found sound samples",
-      "Granular synth",
-      "Textural pads",
-      "Perc objects"
-    ],
-    "structure": [
-      "Freeform",
-      "Improvisation slots",
-      "Noise bridge",
-      "Outro"
-    ]
-  }
-}
 
-DEFAULT_GENRE = "techno"
-
-def _choose_genre_key(genre_input):
-    g = genre_input.strip().lower().replace(" ", "_")
-    if g in GENRE_KB:
-        return g
-    for key in GENRE_KB:
-        if key in g or g in key:
-            return key
-    return DEFAULT_GENRE
-
-def generate_beat_plan(genre="techno", bars=8, mood="medium"):
-    plan = []
-
-    # Define base patterns per genre
+# ----------------------------------------------------
+# 🥁 Drum Template Generator
+# ----------------------------------------------------
+def generate_drum_template(genre, bars=8, mood="neutral", energy=5):
     patterns = {
         "techno": [
-            "Kick on 1 and 3, snare on 2 and 4, closed hat on 8ths",
-            "Kick on every beat, open hat on offbeats",
-            "Driving 4/4 kick, layered percussion every 2 bars",
-        ],
-        "industrial": [
-            "Heavy kick on 1 and 3, snare with distortion on 2 and 4",
-            "Kick + noise hits, metallic hat patterns",
-            "Broken beat with machine-gun snare fills",
-        ],
-        "ebm": [
-            "Kick on 1, snare on 2 and 4, syncopated hats",
-            "Thick kick, clap layer every 4 bars",
-            "Kick + tom groove, offbeat snare variations",
+            "4/4 kick with offbeat open hat",
+            "Kick on every beat, snare/clap on 2 and 4",
+            "Driving groove with layered percussion",
         ],
         "hiphop": [
-            "Boom-bap: kick on 1 and 3, snare on 2 and 4",
-            "Trap: rapid hat rolls, 808 kick, clap on 2 and 4",
-            "Lo-fi: swing groove, snare slightly late",
+            "Boom-bap kick/snare, swung hi-hats",
+            "Trap-style 808 kick with rapid hi-hats",
+            "Lo-fi groove with dusty clap",
+        ],
+        "industrial": [
+            "Distorted kick and snare with machine-gun hats",
+            "Broken beat with metallic percussion",
+            "Layered noise hits and syncopated groove",
+        ],
+        "ebm": [
+            "Pulsing kick, clap every 4 bars",
+            "Kick on 1, tom fills on 3",
+            "Kick/snare syncopation with aggressive hats",
+        ],
+        "electro": [
+            "Kick on 1 and 3, snare on 2 and 4",
+            "Classic 808 groove with rimshots",
+            "Funky syncopated beat with 16th hats",
         ],
     }
 
-    genre_patterns = patterns.get(genre.lower(), patterns["techno"])
+    genre_key = genre.lower().split("_")[0]
+    genre_patterns = patterns.get(genre_key, patterns["techno"])
 
+    drum_template = []
     for bar in range(1, bars + 1):
-        # Pick a base pattern randomly
         base = random.choice(genre_patterns)
+        fill = ""
 
-        # Add fills or accents every 4 or 8 bars
+        # Variation logic
         if bar % 4 == 0:
-            fill = " + small fill"
-        elif bar % 8 == 0:
-            fill = " + big transition fill"
-        else:
-            fill = ""
+            fill += " + short fill"
+        if bar % 8 == 0:
+            fill += " + transition"
 
-        # Adjust density by mood
-        if mood == "high":
+        # Mood and energy adjustments
+        if energy > 7:
             fill += " + extra percussion"
-        elif mood == "low":
-            fill += " + minimal elements"
+        elif energy < 4:
+            fill += " + stripped-down feel"
+        if "dark" in mood.lower():
+            fill += " + darker timbre"
+        if "uplifting" in mood.lower():
+            fill += " + brighter groove"
 
-        plan.append(f"Bar {bar}: {base}{fill}")
+        drum_template.append(f"Bar {bar}: {base}{fill}")
+    return drum_template
 
+
+# ----------------------------------------------------
+# 🎛️ Beat Plan Generator
+# ----------------------------------------------------
+def generate_beat_plan(genre="techno", bpm=125, mood="neutral", energy=5, bars=8):
+    plan = {
+        "genre": genre,
+        "bpm": bpm,
+        "mood": mood,
+        "energy": energy,
+        "drum_pattern_summary": f"{genre.title()} groove with {mood} mood at {energy}/10 energy",
+        "drum_template_8bars": generate_drum_template(genre, bars, mood, energy),
+        "instruments": ["Kick", "Snare", "Hi-hat", "Bass"],
+        "structure": ["Intro", "Verse", "Chorus", "Verse", "Outro"],
+    }
     return plan
 
-def save_plan_json(plan: dict, filename: str=None):
-    p = Path("/mnt/data")
-    p.mkdir(parents=True, exist_ok=True)
-    if filename is None:
-        filename = f"beat_plan_{plan['genre']}_{int(datetime.datetime.utcnow().timestamp())}.json"
-    path = p / filename
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(plan, f, indent=2)
-    return str(path)
 
-def export_midi(plan: dict, filename: str=None, drums=True, bass=True, bars=8):
-    """Export a simple MIDI file based on the plan.
-    This function requires 'pretty_midi'. If 'pretty_midi' is not installed, it will raise an Exception.
-    - drums: include kick/snare/hihat on percussion channel
-    - bass: include a simple bassline on a bass instrument
-    - bars: number of bars to generate (4/4)
-    """
-    if pretty_midi is None:
-        raise RuntimeError("pretty_midi is not installed. Run: pip install pretty_midi")
-    if filename is None:
-        filename = f"beat_{plan['genre']}_{int(datetime.datetime.utcnow().timestamp())}.mid"
-    out_dir = Path("/mnt/data")
-    out_dir.mkdir(parents=True, exist_ok=True)
-    path = out_dir / filename
+# ----------------------------------------------------
+# 💾 Save JSON Plan
+# ----------------------------------------------------
+def save_plan_json(plan, filename="beat_plan.json"):
+    with open(filename, "w") as f:
+        json.dump(plan, f, indent=4)
+    return filename
+
+
+# ----------------------------------------------------
+# 🎹 MIDI Export
+# ----------------------------------------------------
+def export_midi(plan, filename="beat_skeleton.mid", include_bass=False):
+    if not HAS_MIDI:
+        raise ImportError("pretty_midi is not installed. Run: pip install pretty_midi")
+
     bpm = plan.get("bpm", 120)
-    pm = pretty_midi.PrettyMIDI(initial_tempo=bpm)
+    beats_per_second = bpm / 60.0
+    seconds_per_bar = 4 / beats_per_second  # 4/4 time
+
+    midi = pretty_midi.PrettyMIDI()
+
     # Drums
-    if drums:
-        drum = pretty_midi.Instrument(program=0, is_drum=True, name="Drum Kit")
-        seconds_per_beat = 60.0 / bpm
-        beats_per_bar = 4
-        total_beats = bars * beats_per_bar
-        for beat_idx in range(total_beats):
-            t = beat_idx * seconds_per_beat
-            kick_note = pretty_midi.Note(velocity=100, pitch=36, start=t, end=t+0.05)
-            drum.notes.append(kick_note)
-            if (beat_idx % 4) in (1, 3):
-                snare = pretty_midi.Note(velocity=90, pitch=38, start=t, end=t+0.05)
-                drum.notes.append(snare)
-            hh_t1 = t
-            hh_t2 = t + seconds_per_beat * 0.5
-            hh1 = pretty_midi.Note(velocity=70, pitch=42, start=hh_t1, end=hh_t1+0.02)
-            hh2 = pretty_midi.Note(velocity=65, pitch=42, start=hh_t2, end=hh_t2+0.02)
-            drum.notes.extend([hh1, hh2])
-        pm.instruments.append(drum)
-    # Bass
-    if bass:
-        bass_inst = pretty_midi.Instrument(program=34, is_drum=False, name="Electric Bass")
-        genre = plan.get("genre", "techno")
-        root_map = { "techno": 36, "industrial": 40, "ebm": 38, "electro": 37, "hiphop_boom_bap": 45, "hiphop_trap": 40, "lofi": 48, "experimental": 50 }
-        root = root_map.get(genre, 36)
-        seconds_per_beat = 60.0 / bpm
-        beats_per_bar = 4
-        for beat_idx in range(bars * beats_per_bar):
-            t = beat_idx * seconds_per_beat
-            if beat_idx % 2 == 0:
-                end = t + seconds_per_beat * 1.9
-            else:
-                end = t + seconds_per_beat * 0.9
-            note = pretty_midi.Note(velocity=80, pitch=root, start=t, end=end)
-            bass_inst.notes.append(note)
-        pm.instruments.append(bass_inst)
-    pm.write(str(path))
-    return str(path)
+    drums = pretty_midi.Instrument(program=0, is_drum=True)
+    midi.instruments.append(drums)
+
+    for bar_index, bar in enumerate(plan["drum_template_8bars"]):
+        start_time = bar_index * seconds_per_bar
+
+        # Kick (note 36)
+        kick = pretty_midi.Note(
+            velocity=100,
+            pitch=36,
+            start=start_time,
+            end=start_time + 0.1,
+        )
+        drums.notes.append(kick)
+
+        # Snare (note 38)
+        snare_time = start_time + seconds_per_bar / 2
+        snare = pretty_midi.Note(
+            velocity=95,
+            pitch=38,
+            start=snare_time,
+            end=snare_time + 0.1,
+        )
+        drums.notes.append(snare)
+
+        # Hi-hats (note 42) - 8th notes
+        for i in range(8):
+            hat_time = start_time + i * (seconds_per_bar / 8)
+            hat = pretty_midi.Note(
+                velocity=70,
+                pitch=42,
+                start=hat_time,
+                end=hat_time + 0.05,
+            )
+            drums.notes.append(hat)
+
+    # Optional bassline
+    if include_bass:
+        bass = pretty_midi.Instrument(program=32)  # Fingered bass
+        midi.instruments.append(bass)
+        root_notes = [36, 38, 41, 43]  # Basic bass pattern (C, D, F, G)
+        for bar_index in range(len(plan["drum_template_8bars"])):
+            start_time = bar_index * seconds_per_bar
+            pitch = random.choice(root_notes)
+            note = pretty_midi.Note(
+                velocity=100,
+                pitch=pitch,
+                start=start_time,
+                end=start_time + seconds_per_bar,
+            )
+            bass.notes.append(note)
+
+    midi.write(filename)
+    return filename
+
+
+# ----------------------------------------------------
+# 🧪 Test (if run directly)
+# ----------------------------------------------------
+if __name__ == "__main__":
+    plan = generate_beat_plan("hiphop", bpm=90, mood="dark", energy=7)
+    save_plan_json(plan)
+    if HAS_MIDI:
+        export_midi(plan, "demo.mid", include_bass=True)
+        print("✅ MIDI exported as demo.mid")
+    else:
+        print("⚠️ pretty_midi not installed — JSON only")
