@@ -226,39 +226,55 @@ def _choose_genre_key(genre_input):
             return key
     return DEFAULT_GENRE
 
-def generate_beat_plan(genre_input: str, mood: str=None, energy: int=None, seed: int=None):
-    if seed is not None:
-        random.seed(seed)
-    genre_key = _choose_genre_key(genre_input)
-    kb = GENRE_KB[genre_key]
-    bpm = random.randint(kb["bpm_range"][0], kb["bpm_range"][1])
-    if energy is not None:
-        shift = int((energy - 5) * 0.8)
-        bpm = max(kb["bpm_range"][0], min(kb["bpm_range"][1], bpm + shift))
-    instruments = random.sample(kb["instruments"], k=min(3, len(kb["instruments"])))
-    structure = kb["structure"].copy()
-    if random.random() < 0.4:
-        insert_pos = random.randint(1, max(1, len(structure)-2))
-        structure.insert(insert_pos, "Short Fill / Transition")
-    drum_template = []
-    for bar in range(1,9):
-        fill = ""
-        if bar % 4 == 0 and random.random() < 0.5:
-            fill = " + small fill"
-        drum_template.append(f"Bar {{bar}}: Kick on 1, hat on 8th notes{{fill}}")
-    plan = {
-        "genre": genre_key,
-        "requested_genre": genre_input,
-        "bpm": bpm,
-        "mood": mood or "neutral",
-        "energy": energy or 5,
-        "drum_pattern_summary": kb["pattern"],
-        "drum_template_8bars": drum_template,
-        "instruments": instruments,
-        "structure": structure,
-        "generated_at": datetime.datetime.utcnow().isoformat() + "Z",
-        "notes": "MIDI export available: drums + simple bassline. To export MIDI, install 'pretty_midi'."
+def generate_beat_plan(genre="techno", bars=8, mood="medium"):
+    plan = []
+
+    # Define base patterns per genre
+    patterns = {
+        "techno": [
+            "Kick on 1 and 3, snare on 2 and 4, closed hat on 8ths",
+            "Kick on every beat, open hat on offbeats",
+            "Driving 4/4 kick, layered percussion every 2 bars",
+        ],
+        "industrial": [
+            "Heavy kick on 1 and 3, snare with distortion on 2 and 4",
+            "Kick + noise hits, metallic hat patterns",
+            "Broken beat with machine-gun snare fills",
+        ],
+        "ebm": [
+            "Kick on 1, snare on 2 and 4, syncopated hats",
+            "Thick kick, clap layer every 4 bars",
+            "Kick + tom groove, offbeat snare variations",
+        ],
+        "hiphop": [
+            "Boom-bap: kick on 1 and 3, snare on 2 and 4",
+            "Trap: rapid hat rolls, 808 kick, clap on 2 and 4",
+            "Lo-fi: swing groove, snare slightly late",
+        ],
     }
+
+    genre_patterns = patterns.get(genre.lower(), patterns["techno"])
+
+    for bar in range(1, bars + 1):
+        # Pick a base pattern randomly
+        base = random.choice(genre_patterns)
+
+        # Add fills or accents every 4 or 8 bars
+        if bar % 4 == 0:
+            fill = " + small fill"
+        elif bar % 8 == 0:
+            fill = " + big transition fill"
+        else:
+            fill = ""
+
+        # Adjust density by mood
+        if mood == "high":
+            fill += " + extra percussion"
+        elif mood == "low":
+            fill += " + minimal elements"
+
+        plan.append(f"Bar {bar}: {base}{fill}")
+
     return plan
 
 def save_plan_json(plan: dict, filename: str=None):
