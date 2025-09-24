@@ -1,31 +1,89 @@
-# Streamlit app for Beat Starter (uses beat_starter_core.py)
 import streamlit as st
-from beat_starter_core import generate_beat_plan, save_plan_json, export_midi
+import json
+import os
 
-st.set_page_config(page_title="Beat Starter Generator", layout="centered", page_icon="🎛️")
+from beat_starter_core import (
+    generate_beat_plan,
+    save_plan_json,
+    export_midi,
+    HAS_MIDI
+)
 
-st.title("Beat Starter — Beat Plan + MIDI Export (MVP)")
-st.write("Generate a beat plan and export a simple MIDI skeleton (drums + bass). Note: MIDI export requires installing 'pretty_midi'.")
+# ----------------------------------------------------
+# 🎛️ Streamlit UI
+# ----------------------------------------------------
+st.set_page_config(page_title="🎧 Beat Starter", page_icon="🎶", layout="centered")
 
-genre = st.text_input("Genre (e.g. Techno, Industrial, EBM, Electro, HipHop_Trap)", value="Techno")
-mood = st.text_input("Mood (optional, e.g. dark, uplifting)", value="dark")
-energy = st.slider("Energy (1 = low, 10 = high)", min_value=1, max_value=10, value=6)
+st.title("🎧 Beat Starter — Beat Plan + MIDI Generator")
+st.markdown("Generate an 8-bar beat plan and export a MIDI skeleton (drums + optional bass).")
 
-midi_option = st.radio("MIDI export option", ("None (JSON only)", "Drums only", "Drums + Bass (recommended)"))
+st.divider()
 
-if st.button("Generate Beat Plan"):
-    plan = generate_beat_plan(genre, mood=mood, energy=energy, seed=None)
-    st.markdown("### Result")
+# ----------------------------------------------------
+# 🧠 User Inputs
+# ----------------------------------------------------
+genre = st.text_input("🎼 Genre (e.g. Techno, Industrial, EBM, Electro, HipHop, LoFi)", "HipHop")
+mood = st.text_input("🌈 Mood (optional, e.g. dark, uplifting, chill)", "dark")
+energy = st.slider("⚡ Energy (1 = low, 10 = high)", 1, 10, 7)
+bpm = st.number_input("🎚️ BPM (tempo)", min_value=60, max_value=200, value=120)
+
+midi_option = st.radio(
+    "🎹 MIDI Export Option",
+    ["None (JSON only)", "Drums only", "Drums + Bass (recommended)"],
+    index=2
+)
+
+st.divider()
+
+# ----------------------------------------------------
+# 🚀 Generate Beat Plan
+# ----------------------------------------------------
+if st.button("🎶 Generate Beat Plan"):
+    st.info("Generating your beat plan...")
+
+    plan = generate_beat_plan(genre=genre, bpm=bpm, mood=mood, energy=energy, bars=8)
+
+    # Display plan as JSON
+    st.subheader("📊 Beat Plan (Preview)")
     st.json(plan)
-    if st.button("Save JSON"):
-        path = save_plan_json(plan)
-        st.success(f"Saved JSON to {path}")
+
+    # Save JSON
+    json_filename = "beat_plan.json"
+    save_plan_json(plan, json_filename)
+    with open(json_filename, "rb") as f:
+        st.download_button("📥 Download JSON Plan", data=f, file_name=json_filename, mime="application/json")
+
+    # ------------------------------------------------
+    # 🎹 MIDI Export
+    # ------------------------------------------------
     if midi_option != "None (JSON only)":
-        drums = midi_option != ""
-        bass = midi_option == "Drums + Bass (recommended)"
-        try:
-            midi_path = export_midi(plan, drums=True, bass=(midi_option=="Drums + Bass (recommended)"))
-            st.success(f"MIDI exported to: {midi_path}")
-            st.audio(midi_path)
-        except Exception as e:
-            st.error(f"Could not export MIDI: {e}. To enable MIDI export, run: pip install pretty_midi")
+        if not HAS_MIDI:
+            st.error(
+                "❌ pretty_midi is not installed, so MIDI export isn't available.\n\n"
+                "👉 To enable it, run this command on your server:\n\n"
+                "```bash\npip install pretty_midi\n```"
+            )
+        else:
+            st.info("Exporting MIDI...")
+
+            include_bass = midi_option == "Drums + Bass (recommended)"
+            midi_filename = "beat_skeleton.mid"
+            export_midi(plan, filename=midi_filename, include_bass=include_bass)
+
+            # Offer MIDI download
+            with open(midi_filename, "rb") as f:
+                st.download_button(
+                    "🎧 Download MIDI File",
+                    data=f,
+                    file_name=midi_filename,
+                    mime="audio/midi"
+                )
+
+    st.success("✅ Done! Your beat plan and MIDI skeleton are ready.")
+
+
+# ----------------------------------------------------
+# 📎 Footer
+# ----------------------------------------------------
+st.divider()
+st.caption("Made with ❤️ using Python + Streamlit • Perfect for producers & beatmakers")
